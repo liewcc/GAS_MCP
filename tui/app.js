@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // levels up (dist -> tui -> root), not one.
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const CONFIG_PATH = path.join(ROOT_DIR, 'config.json');
+const USAGE_LOG_PATH = path.join(ROOT_DIR, 'usage_log.jsonl');
 
 const DEFAULT_CONFIG = { default_model: 'gemini-2.5-flash', active_tab: 'api_key', api_keys: [], active_profile: null };
 
@@ -58,7 +59,30 @@ function saveConfig(patch) {
   }
 })();
 
-const TABS = ['api_key', 'models', 'exit'];
+const TABS = ['api_key', 'models', 'usage', 'exit'];
+
+// Reads server.py's append-only usage_log.jsonl (one JSON record per line,
+// newest last). Malformed/missing file just yields an empty list -- the tab
+// has nothing to show until the MCP server logs its first call.
+function loadUsageLog() {
+  try {
+    const raw = fs.readFileSync(USAGE_LOG_PATH, 'utf8');
+    return raw
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .reverse(); // newest first
+  } catch (e) {
+    return [];
+  }
+}
 const ACTIONS = ['Switch to selected', 'Edit API key', 'Delete API key', 'Create API key'];
 
 // ── Fixed-width row helpers (same convention as Gemi_MCP_V2's list panes) —
@@ -112,6 +136,14 @@ const MenuBar = React.memo(function MenuBar({ activeTab, mode }) {
         bold={!isMenu && activeTab === 'models'}
       >
         {' MODELS '}
+      </Text>
+      <Text>  </Text>
+      <Text
+        color={activeTab === 'usage' ? (isMenu ? 'black' : 'cyan') : 'gray'}
+        backgroundColor={isMenu && activeTab === 'usage' ? 'cyan' : undefined}
+        bold={!isMenu && activeTab === 'usage'}
+      >
+        {' USAGE '}
       </Text>
       <Text>  </Text>
       <Text
@@ -356,6 +388,83 @@ function ModelsTab({ mode, loading, error, models, modelSelected, defaultModel, 
   );
 }
 
+// ── USAGE tab — flat list of past MCP calls, newest first, read straight from
+// server.py's usage_log.jsonl. Same fixed-width row convention as ModelsTab
+// (each row built to an exact character width so Ink never wraps it). ──
+const TIME_W = 8; // HH:MM:SS
+const PROMPT_W = 6;
+const OUTPUT_W = 6;
+const THOUGHTS_W = 8;
+const CACHED_W = 6;
+const TOTAL_W = 6;
+
+function formatLocalTime(isoTimestamp) {
+  const d = new Date(isoTimestamp);
+  if (Number.isNaN(d.getTime())) return '--:--:--';
+  return d.toLocaleTimeString('en-GB'); // HH:MM:SS, 24h
+}
+
+function UsageTab({ mode, entries, usageSelected, width, height }) {
+  if (entries.length === 0) {
+    return (
+      <Box height={height} alignItems="center" justifyContent="center">
+        <Text dimColor>No MCP calls logged yet.</Text>
+      </Box>
+    );
+  }
+
+  const trackHeight = height - 3; // -1 header row, -2 top+bottom border
+  const win = windowed(entries, usageSelected, trackHeight);
+  const scrollbar = scrollbarColumn(entries.length, trackHeight, win.start);
+
+  const innerWidth = Math.max(20, width - 4);
+  const SCROLL_GAP = 1;
+  const contentWidth = Math.max(10, innerWidth - SCROLL_GAP - 1);
+  const fixedColsWidth = TIME_W + PROMPT_W + OUTPUT_W + THOUGHTS_W + CACHED_W + TOTAL_W;
+  const COL_GAP = 2;
+  const modelWidth = Math.max(8, contentWidth - fixedColsWidth - COL_GAP * 6);
+
+  const headerRow = padEndDisplay(
+    padEndDisplay('Time', TIME_W) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Model', modelWidth) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Prompt', PROMPT_W) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Output', OUTPUT_W) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Thoughts', THOUGHTS_W) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Cached', CACHED_W) + ' '.repeat(COL_GAP)
+      + padEndDisplay('Total', TOTAL_W),
+    contentWidth,
+  );
+
+  return (
+    <Box height={height}>
+      <Box width={width} height={height} borderStyle="single" borderColor={mode === 'left' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
+        <Text backgroundColor="blue" color="white">{headerRow}{' '.repeat(SCROLL_GAP)} </Text>
+        {win.items.map((e, i) => {
+          const idx = win.start + i;
+          const isCursor = mode === 'left' && idx === usageSelected;
+          const timeCol = padEndDisplay(formatLocalTime(e.timestamp), TIME_W);
+          const modelCol = padEndDisplay(truncateDisplay(e.model || '', modelWidth), modelWidth);
+          const promptCol = padEndDisplay(String(e.prompt_tokens ?? 0), PROMPT_W);
+          const outputCol = padEndDisplay(String(e.candidates_tokens ?? 0), OUTPUT_W);
+          const thoughtsCol = padEndDisplay(String(e.thoughts_tokens ?? 0), THOUGHTS_W);
+          const cachedCol = padEndDisplay(String(e.cached_tokens ?? 0), CACHED_W);
+          const totalCol = padEndDisplay(String(e.total_tokens ?? 0), TOTAL_W);
+          const rowStr = padEndDisplay(
+            `${timeCol}  ${modelCol}  ${promptCol}  ${outputCol}  ${thoughtsCol}  ${cachedCol}  ${totalCol}`,
+            contentWidth,
+          );
+          return (
+            <Text key={`${e.timestamp}-${idx}`}>
+              <Text backgroundColor={isCursor ? 'cyan' : undefined} color={isCursor ? 'black' : undefined}>{rowStr}</Text>
+              {' '.repeat(SCROLL_GAP)}<Text dimColor>{scrollbar[i]}</Text>
+            </Text>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
 function Footer({ mode, activeTab }) {
   let hint;
   if (mode === 'menu') hint = '[← →] switch tab  [Enter/↓] select  [Ctrl+C] quit';
@@ -365,6 +474,7 @@ function Footer({ mode, activeTab }) {
   else if (mode === 'apikey_delete_confirm') hint = '[← →] choose  [Enter] confirm  [Esc/Tab] cancel';
   else if (mode === 'left' && activeTab === 'api_key') hint = '[↑↓] choose action  [→/Enter] pick profile (Enter=create)  [Esc/Tab] back';
   else if (mode === 'right' && activeTab === 'api_key') hint = '[↑↓] navigate  [Enter] run action  [←/Esc/Tab] back';
+  else if (mode === 'left' && activeTab === 'usage') hint = '[↑↓] navigate  [Esc/Tab] back';
   else if (mode === 'left') hint = '[↑↓] navigate  [Enter] set default  [Esc/Tab] back';
   else hint = '[Ctrl+C] quit';
   return (
@@ -428,6 +538,23 @@ function App() {
   const [modelsError, setModelsError] = useState(null);
   const [modelSelected, setModelSelected] = useState(0);
   const [defaultModel, setDefaultModel] = useState(loadConfig().default_model || '');
+
+  const [usageEntries, setUsageEntries] = useState([]);
+  const [usageSelected, setUsageSelected] = useState(0);
+
+  // Auto-refresh the USAGE tab while it's open: server.py appends to
+  // usage_log.jsonl from a separate process, so nothing else would tell this
+  // TUI a new MCP call just happened. Only polls while the tab is actually
+  // visible (activeTab === 'usage'), not from the menu bar or other tabs.
+  useEffect(() => {
+    if (activeTab !== 'usage') return;
+    const interval = setInterval(() => {
+      const entries = loadUsageLog();
+      setUsageEntries(entries);
+      setUsageSelected((s) => Math.max(0, Math.min(s, entries.length - 1)));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   // The TUI only loaded config.json once, at mount -- so an external edit
   // (hand-editing the file, or another tool writing to it) while the TUI is
@@ -559,6 +686,10 @@ function App() {
           refreshFromDisk();
           setActionSelected(0);
           setMode('left');
+        } else if (activeTab === 'usage') {
+          setUsageEntries(loadUsageLog());
+          setUsageSelected(0);
+          setMode('left');
         } else {
           refreshFromDisk();
           setModelSelected(0);
@@ -682,6 +813,13 @@ function App() {
       return;
     }
 
+    // ── USAGE tab: single flat list — every logged call, no Enter action ──
+    if (mode === 'left' && activeTab === 'usage') {
+      if (key.upArrow) setUsageSelected((s) => Math.max(0, s - 1));
+      if (key.downArrow) setUsageSelected((s) => Math.min(Math.max(0, usageEntries.length - 1), s + 1));
+      return;
+    }
+
     // ── MODELS tab: single flat list — every model, Enter sets default ────
     if (mode === 'left') {
       if (key.upArrow) setModelSelected((s) => Math.max(0, s - 1));
@@ -740,6 +878,15 @@ function App() {
           models={allModels}
           modelSelected={modelSelected}
           defaultModel={defaultModel}
+          width={leftPanelWidth + rightPanelWidth}
+          height={mainHeight}
+        />
+      )}
+      {mode !== 'exit_confirm' && mode !== 'apikey_delete_confirm' && activeTab === 'usage' && (
+        <UsageTab
+          mode={mode}
+          entries={usageEntries}
+          usageSelected={usageSelected}
           width={leftPanelWidth + rightPanelWidth}
           height={mainHeight}
         />

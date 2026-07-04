@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -11,6 +13,8 @@ load_dotenv()
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 CAPABILITIES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_capabilities.json")
+USAGE_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "usage_log.jsonl")
+USAGE_LOG_MAX_ENTRIES = 500
 FALLBACK_MODEL = "gemini-2.5-flash"
 
 
@@ -31,6 +35,36 @@ def _load_capabilities() -> Dict[str, Any]:
 
 
 MODEL_CAPS = _load_capabilities()
+_usage_log_lock = threading.Lock()
+
+
+def _log_usage(model: str, usage: Dict[str, Any]) -> None:
+    """Append one token-usage record for the USAGE tab, trimmed to the last
+    USAGE_LOG_MAX_ENTRIES lines. Best-effort: logging must never break a
+    chat_completion call, so any failure here is swallowed."""
+    if not usage:
+        return
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": model,
+        "prompt_tokens": usage.get("promptTokenCount", 0),
+        "candidates_tokens": usage.get("candidatesTokenCount", 0),
+        "thoughts_tokens": usage.get("thoughtsTokenCount", 0),
+        "cached_tokens": usage.get("cachedContentTokenCount", 0),
+        "total_tokens": usage.get("totalTokenCount", 0),
+    }
+    try:
+        with _usage_log_lock:
+            lines = []
+            if os.path.exists(USAGE_LOG_PATH):
+                with open(USAGE_LOG_PATH, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+            lines.append(json.dumps(entry) + "\n")
+            lines = lines[-USAGE_LOG_MAX_ENTRIES:]
+            with open(USAGE_LOG_PATH, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+    except Exception:
+        pass
 
 
 def _infer_caps(model_id: str) -> dict:
@@ -181,6 +215,7 @@ def chat_completion(
     )
     resp.raise_for_status()
     data = resp.json()
+    _log_usage(resolved_model, data.get("usageMetadata") or {})
     candidates = data.get("candidates") or []
     if not candidates:
         return TextContent(type="text", text=json.dumps(data))

@@ -6,3 +6,4 @@ __pycache__/
 node-portable.zip
 tui/node_modules/
 tui/dist/
+usage_log.jsonl
