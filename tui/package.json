@@ -1,0 +1,20 @@
+{
+  "name": "gas-tui",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GAS MCP — debug TUI",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && node dist/app.mjs"
+  },
+  "dependencies": {
+    "ink": "^5.0.1",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

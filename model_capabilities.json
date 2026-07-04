@@ -1,0 +1,16 @@
+{
+  "gemini-2.5-pro": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-2.5-pro" },
+  "gemini-2.5-flash": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-2.5-flash" },
+  "gemini-2.5-flash-lite": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-2.5-flash-lite" },
+  "gemini-2.0-flash": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-2.0-flash" },
+  "gemini-2.0-flash-lite": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-2.0-flash-lite" },
+  "gemini-1.5-pro": { "type": "chat", "vision": true, "tools": true, "context": 2097152, "notes": "GAS model capability information for gemini-1.5-pro" },
+  "gemini-1.5-flash": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-1.5-flash" },
+  "gemini-1.5-flash-8b": { "type": "chat", "vision": true, "tools": true, "context": 1048576, "notes": "GAS model capability information for gemini-1.5-flash-8b" },
+  "text-embedding-004": { "type": "embed", "vision": false, "tools": false, "context": 2048, "notes": "GAS model capability information for text-embedding-004" },
+  "embedding-001": { "type": "embed", "vision": false, "tools": false, "context": 2048, "notes": "GAS model capability information for embedding-001" },
+  "gemini-embedding-001": { "type": "embed", "vision": false, "tools": false, "context": 2048, "notes": "GAS model capability information for gemini-embedding-001" },
+  "imagen-3.0-generate-002": { "type": "image", "vision": false, "tools": false, "context": null, "notes": "GAS model capability information for imagen-3.0-generate-002" },
+  "veo-2.0-generate-001": { "type": "video", "vision": false, "tools": false, "context": null, "notes": "GAS model capability information for veo-2.0-generate-001" },
+  "aqa": { "type": "other", "vision": false, "tools": false, "context": null, "notes": "GAS model capability information for aqa" }
+}
