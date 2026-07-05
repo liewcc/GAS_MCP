@@ -19,6 +19,21 @@ GAS MCP exposes every model in the Google AI Studio catalog to any MCP-compatibl
 
 **Prerequisite:** Python 3.10+ on PATH.
 
+### Option A — let a code agent install it
+
+Paste this into any code agent (Claude Code, Cursor, Windsurf, ...) and it will download and install everything for you:
+
+```text
+Clone https://github.com/liewcc/GAS_MCP to a local folder of my choice,
+then run setup.bat inside it and confirm it finishes without errors.
+It needs Python 3.10+; everything else (venv, portable Node.js, TUI deps)
+is handled by the script.
+```
+
+### Option B — manual
+
+Clone the repo and run:
+
 ```bat
 setup.bat
 ```
@@ -36,7 +51,11 @@ The script is fully automated:
 
 The easiest way: paste this into any code agent (Claude Code, Cursor, Windsurf, ...):
 
-> Help me install the MCP server at `D:\path\to\GAS_MCP` into my MCP client config. The command is `.venv\Scripts\python.exe server.py` run from that directory, transport is stdio, and the server name is `gas`.
+```text
+Help me install the MCP server at D:\path\to\GAS_MCP into my MCP client config.
+The command is .venv\Scripts\python.exe server.py run from that directory,
+transport is stdio, and the server name is "gas".
+```
 
 Or add it manually, e.g. for Claude Desktop / Claude Code:
 
