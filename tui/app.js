@@ -3,6 +3,18 @@ import { render, Box, Text, useInput, useApp, useStdout } from 'ink';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { exec } from 'child_process';
+
+const REPO_URL = 'https://github.com/liewcc/GAS_MCP';
+const AI_STUDIO_URL = 'https://aistudio.google.com/';
+
+// Fire-and-forget: hand the URL to the OS's default-browser opener. `start`
+// is a cmd.exe builtin (not an executable), so it must go through a shell —
+// the empty "" first argument is `start`'s window-title placeholder, required
+// whenever the target arg itself is quoted.
+function openInBrowser(url) {
+  exec(`start "" "${url}"`);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // This file runs from the built tui/dist/app.mjs, so the repo root is two
@@ -59,7 +71,7 @@ function saveConfig(patch) {
   }
 })();
 
-const TABS = ['api_key', 'models', 'usage', 'exit'];
+const TABS = ['api_key', 'models', 'usage', 'exit', 'ai_studio', 'repo'];
 
 // Reads server.py's append-only usage_log.jsonl (one JSON record per line,
 // newest last). Malformed/missing file just yields an empty list -- the tab
@@ -155,6 +167,22 @@ const MenuBar = React.memo(function MenuBar({ activeTab, mode }) {
       </Text>
       <Text>  </Text>
       {isMenu && <Text dimColor>(← → switch, ↓/Enter select)</Text>}
+      <Box flexGrow={1} />
+      <Text
+        color={activeTab === 'ai_studio' ? (isMenu ? 'black' : 'magenta') : 'gray'}
+        backgroundColor={isMenu && activeTab === 'ai_studio' ? 'magenta' : undefined}
+        bold={!isMenu && activeTab === 'ai_studio'}
+      >
+        {' AI STUDIO '}
+      </Text>
+      <Text>  </Text>
+      <Text
+        color={activeTab === 'repo' ? (isMenu ? 'black' : 'magenta') : 'gray'}
+        backgroundColor={isMenu && activeTab === 'repo' ? 'magenta' : undefined}
+        bold={!isMenu && activeTab === 'repo'}
+      >
+        {' REPO '}
+      </Text>
     </Box>
   );
 });
@@ -678,6 +706,11 @@ function App() {
           return TABS[(i + step + TABS.length) % TABS.length];
         });
       }
+      if (key.return && (activeTab === 'repo' || activeTab === 'ai_studio')) {
+        // Instant action, not a drill-in panel — stays on the menu bar.
+        openInBrowser(activeTab === 'repo' ? REPO_URL : AI_STUDIO_URL);
+        return;
+      }
       if (key.return || key.downArrow) {
         if (activeTab === 'exit') {
           setMode('exit_confirm');
@@ -690,11 +723,12 @@ function App() {
           setUsageEntries(loadUsageLog());
           setUsageSelected(0);
           setMode('left');
-        } else {
+        } else if (activeTab === 'models') {
           refreshFromDisk();
           setModelSelected(0);
           setMode('left');
         }
+        // activeTab === 'repo': no panel to drill into, downArrow is a no-op.
       }
       return;
     }

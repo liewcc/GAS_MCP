@@ -32,10 +32,10 @@ If rows < 24 Then rows = 24
 desktop = ws.SpecialFolders("Desktop")
 wtPath = ws.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Microsoft\WindowsApps\wt.exe"
 
-Set sc = ws.CreateShortcut(desktop & "\GAS MCP.lnk")
+Set sc = ws.CreateShortcut(desktop & "\Google AI Studio MCP.lnk")
 If fso.FileExists(wtPath) Then
     sc.TargetPath = wtPath
-    sc.Arguments = "--size " & cols & "," & rows & " --title ""GAS MCP"" cmd /k """ & root & "run.bat"""
+    sc.Arguments = "--size " & cols & "," & rows & " --title ""Google AI Studio MCP"" cmd /k """ & root & "run.bat"""
 Else
     sc.TargetPath = root & "run.bat"
 End If
