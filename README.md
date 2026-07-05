@@ -52,9 +52,10 @@ The script is fully automated:
 The easiest way: paste this into any code agent (Claude Code, Cursor, Windsurf, ...):
 
 ```text
-Help me install the MCP server at D:\path\to\GAS_MCP into my MCP client config.
-The command is .venv\Scripts\python.exe server.py run from that directory,
-transport is stdio, and the server name is "gas".
+Help me register the GAS MCP server in my MCP client config.
+It is in the GAS_MCP folder cloned from https://github.com/liewcc/GAS_MCP —
+locate it on this machine. The command is .venv\Scripts\python.exe server.py
+run from that folder, transport is stdio, and the server name is "gas".
 ```
 
 Or add it manually, e.g. for Claude Desktop / Claude Code:
